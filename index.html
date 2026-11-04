@@ -65,6 +65,20 @@
   .ck.on { background:var(--ok); border-color:var(--ok); } .done .tx { text-decoration:line-through; color:var(--sub); }
   .nt { display:grid; grid-template-columns:1fr; gap:6px; padding:10px 0; border-top:.5px solid var(--soft); }
   .nt .two { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .split { display:block; } .pr .slot:first-child { margin-top:0; }
+  @media (min-width: 900px) {
+    body { padding-left:200px; padding-bottom:24px; }
+    .tabbar { top:0; bottom:0; right:auto; width:200px; flex-direction:column; justify-content:flex-start; padding:84px 12px 12px; border-top:0; border-right:.5px solid var(--line); }
+    .tabbar button { flex:none; flex-direction:row; gap:10px; justify-content:flex-start; font-size:15px; font-weight:500; padding:11px 14px; border-radius:12px; }
+    .tabbar button.on { background:var(--pri-soft); }
+    .tabbar svg { width:22px; height:22px; }
+    header { padding:18px 28px 14px; }
+    main { max-width:1180px; padding:20px 28px; }
+    .split { display:grid; grid-template-columns:minmax(340px,420px) minmax(0,1fr); gap:24px; align-items:start; }
+    .stick { position:sticky; top:96px; }
+    .card.tap:hover { box-shadow:0 2px 8px rgba(0,0,0,.12); cursor:pointer; }
+    #toast { bottom:30px; left:calc(50% + 100px); }
+  }
   #toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.85); color:#fff; padding:10px 18px; border-radius:20px; font-size:13px; display:none; z-index:100; }
 </style>
 </head>
@@ -100,6 +114,8 @@ const cset = (k, v) => { try { localStorage.setItem('eh_c_' + k, JSON.stringify(
 let busyN = 0;
 function busy(on) { busyN += on ? 1 : -1; const el = $('#today'); if (el) el.textContent = todayText() + (busyN > 0 ? ' · 새로고침 중…' : ''); }
 const todayText = () => new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }) + ' 기준';
+const isWide = () => window.matchMedia('(min-width: 900px)').matches;
+function paneRight(html) { const r = $('#mr'); if (isWide() && r) r.innerHTML = html; else $('#main').innerHTML = html; }
 const MEET_DOW = 4, MEET_TIME = '14:00';
 let staff = [], tab = 'insp';
 
@@ -155,8 +171,10 @@ function drawInsp(err) {
     h += `<div class="d ${key === today ? 'today' : ''} ${list.length ? 'has' : ''} ${key === tlSel ? 'sel' : ''}" onclick="tlSel='${key}';drawInsp()">${d}${list.length ? '<span class="ok">✓</span>' : ''}${list.some(x => x.hasIssue) ? '<i class="iss"></i>' : ''}</div>`;
   }
   h += '</div></div>';
+  h = '<div class="split"><div class="pl stick">' + h + '</div><div class="pr">';
   const show = tlSel ? rows.filter(x => x.date === tlSel) : rows.slice(0, 10);
   h += `<div class="slot">${tlSel ? tlSel + ' 점검 내역' : '최근 점검 타임라인'}</div>` + (show.length ? show.map(inspCard).join('') : '<div class="meta" style="padding:0 4px">기록이 없습니다.</div>');
+  h += '</div></div>';
   $('#main').innerHTML = h;
 }
 function linkify(v) {
@@ -208,8 +226,9 @@ function drawMeet() {
   }
   h += `</div><div class="meta" style="margin-top:8px">파란 칸 = 회의록 있음 · 테두리 = 다음 회의</div></div>`;
   if (open.length) {
-    h += `<div class="slot">미완료 할 일</div><div class="card">${open.map(t => taskRow(t, true)).join('')}</div>`;
+    h += `<div class="slot">미완료 할 일</div><div class="card" id="mOpen">${open.map(t => taskRow(t, true)).join('')}</div>`;
   }
+  h = '<div class="split"><div class="pl" id="ml">' + h + '</div><div class="pr" id="mr">';
   h += `<div class="slot">지난 회의록</div>`;
   h += M.meetings.length ? M.meetings.map(mt => {
     const ts = M.tasks.filter(t => t.meetingId === mt.id), dn = ts.filter(t => t.status === '완료').length;
@@ -217,6 +236,7 @@ function drawMeet() {
       <div class="meta">결정 ${mt.decisions.length} · 할 일 ${ts.length}</div>
       ${ts.length ? `<div style="margin-top:6px"><span class="tag okt">완료 ${dn}</span>${ts.length - dn ? `<span class="tag bad">미완료 ${ts.length - dn}</span>` : ''}</div>` : ''}</div>`;
   }).join('') : '<div class="meta" style="padding:0 4px">아직 회의록이 없습니다. 첫 회의록을 작성해 보세요.</div>';
+  h += '</div></div>';
   $('#main').innerHTML = h;
 }
 function taskRow(t, showMeet) {
@@ -231,6 +251,8 @@ async function flipTask(id, done) {
 }
 let view = { name: 'list', id: null };
 function refreshView() {
+  const mo = $('#mOpen');
+  if (mo) { const o = M.tasks.filter(t => t.status !== '완료'); mo.innerHTML = o.length ? o.map(t => taskRow(t, true)).join('') : '<div class="meta">미완료 할 일이 없습니다.</div>'; }
   if (view.name === 'detail') return openMeeting(view.id);
   if (view.name === 'edit') {
     const el = $('#ePrev'); if (!el) return;
@@ -244,7 +266,7 @@ function refreshView() {
 async function openMeeting(id) {
   view = { name: 'detail', id };
   const mt = M.meetings.find(x => x.id === id); if (!mt) return;
-  window.scrollTo(0, 0);
+  if (!isWide()) window.scrollTo(0, 0);
   const ts = M.tasks.filter(t => t.meetingId === id);
   let h = `<div class="nav"><button class="link" onclick="view={name:'list'};drawMeet()">‹ 회의</button><button class="link" onclick="editMeeting('${esc(id)}')">수정</button></div>
     <div class="card"><div class="t" style="font-size:17px">${esc(mt.title)}</div><div class="meta">${esc(mt.date)} (${dowOf(mt.date)}) ${esc(mt.time)} · 참석 ${mt.attendees.length}명 · 기록 ${esc(mt.writer)}</div>
@@ -253,7 +275,7 @@ async function openMeeting(id) {
   if (mt.decisions.length) h += `<div class="lbl">결정 사항</div><div class="card">${mt.decisions.map(d => `<div class="trow"><div style="flex:1">${esc(d)}</div></div>`).join('')}</div>`;
   if (mt.notes) h += `<div class="lbl">메모</div><div class="card" style="white-space:pre-wrap;font-size:14px">${esc(mt.notes)}</div>`;
   h += `<div class="lbl">할 일</div><div class="card">${ts.length ? ts.map(t => taskRow(t)).join('') : '<div class="meta">등록된 할 일이 없습니다.</div>'}</div>`;
-  $('#main').innerHTML = h;
+  paneRight(h);
   try {
     const r = await run('getInspections');
     const to = mt.date, from = ymd(new Date(new Date(to + 'T00:00:00').getTime() - 6 * 864e5));
@@ -264,14 +286,14 @@ async function openMeeting(id) {
 
 function editMeeting(id) {
   view = { name: 'edit', id: id || null };
-  window.scrollTo(0, 0);
+  if (!isWide()) window.scrollTo(0, 0);
   const mt = id ? M.meetings.find(x => x.id === id) : null;
   const d0 = mt ? mt.date : ymd(nextMeeting());
   const att = new Set(mt ? mt.attendees : []);
   const prevOpen = M.tasks.filter(t => t.status !== '완료' && (!id || t.meetingId !== id));
   const names = staff.map(s => s.name);
-  $('#main').innerHTML = `<div class="nav"><button class="link" onclick="${id ? `openMeeting('${esc(id)}')` : "view={name:'list'};drawMeet()"}">취소</button><span class="t">${id ? '회의록 수정' : '새 회의록'}</span><button class="link" style="font-weight:600" onclick="saveMeet()">저장</button></div>
-    <div class="lbl">제목</div><input type="text" id="eTitle" value="${esc(mt ? mt.title : md(d0) + ' (' + dowOf(d0) + ') 정기회의')}">
+  paneRight(`<div class="nav"><button class="link" onclick="${id ? `openMeeting('${esc(id)}')` : "view={name:'list'};drawMeet()"}">취소</button><span class="t">${id ? '회의록 수정' : '새 회의록'}</span><button class="link" style="font-weight:600" onclick="saveMeet()">저장</button></div>
+    <div class="lbl">제목</div><input type="text" id="eTitle" value="${esc(mt ? mt.title : '정기회의')}">
     <div class="lbl">기록자</div><input type="text" id="eWriter" placeholder="이름" value="${esc(mt ? mt.writer : (function () { try { return localStorage.getItem('eh_writer') || ''; } catch (e) { return ''; } })())}">
     <div class="lbl">날짜 / 시간</div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px"><input type="date" id="eDate" value="${d0}"><input type="time" id="eTime" value="${esc(mt ? mt.time : MEET_TIME)}"></div>
     <div class="lbl">참석자</div><div class="chips" id="eAtt">${names.map(n => `<button class="${att.has(n) ? 'on' : ''}" data-n="${esc(n)}" onclick="this.classList.toggle('on')">${esc(n)}</button>`).join('')}</div>
@@ -280,7 +302,7 @@ function editMeeting(id) {
     <div class="lbl">메모</div><textarea id="eNotes" rows="3">${esc(mt ? mt.notes : '')}</textarea>
     <div class="lbl">새 할 일</div><div class="card" id="eTasks" style="padding-top:0;padding-bottom:4px"></div>
     <button class="btn ghost block" style="margin-top:6px" onclick="addTaskRow()">＋ 할 일 추가</button>
-    <button class="btn block" onclick="saveMeet()">저장</button>`;
+    <button class="btn block" onclick="saveMeet()">저장</button>`);
   addTaskRow();
 }
 function addTaskRow() {
