@@ -95,14 +95,20 @@ async function run(fn, ...args) {
   if (!j.ok) throw new Error(j.error);
   return j.data;
 }
+const cget = k => { try { return JSON.parse(localStorage.getItem('eh_c_' + k)); } catch (e) { return null; } };
+const cset = (k, v) => { try { localStorage.setItem('eh_c_' + k, JSON.stringify(v)); } catch (e) {} };
+let busyN = 0;
+function busy(on) { busyN += on ? 1 : -1; const el = $('#today'); if (el) el.textContent = todayText() + (busyN > 0 ? ' · 새로고침 중…' : ''); }
+const todayText = () => new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }) + ' 기준';
 const MEET_DOW = 4, MEET_TIME = '14:00';
 let staff = [], tab = 'insp';
 
 async function init() {
-  $('#today').textContent = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }) + ' 기준';
-  staff = await run('getStaff');
+  $('#today').textContent = todayText();
+  staff = cget('staff') || [];
   $('#tInsp').onclick = () => go('insp');
   $('#tMeet').onclick = () => go('meet');
+  run('getStaff').then(r => { staff = r; cset('staff', r); }).catch(() => {});
   go('insp');
 }
 function go(t) {
@@ -115,9 +121,18 @@ function go(t) {
 /* ───── 점검 ───── */
 let insp = [], tlStore = '전체', tlMonth = new Date(), tlSel = null;
 async function renderInsp() {
-  $('#main').innerHTML = '불러오는 중…';
-  const r = await run('getInspections');
-  insp = r.list; drawInsp(r.error);
+  const c = cget('insp');
+  if (c) { insp = c.list; drawInsp(); } else $('#main').innerHTML = '불러오는 중…';
+  busy(true);
+  try {
+    let list = insp.length ? insp : ((cget('insp') || {}).list || []);
+    if (!list.length) list = (await run('getInspections')).list;
+    const r = { list };
+    insp = r.list; cset('insp', r);
+    if (tab === 'insp') drawInsp(r.error);
+    run('getMeetingData').then(d => cset('meet', d)).catch(() => {});
+  } catch (e) { if (!c) $('#main').textContent = '오류: ' + e.message; }
+  busy(false);
 }
 function drawInsp(err) {
   const rows = insp.filter(x => tlStore === '전체' || x.store === tlStore);
@@ -166,9 +181,14 @@ const ddTag = key => { const n = dday(key); return n === 0 ? '<span class="tag w
 
 async function renderMeet() {
   view = { name: 'list', id: null };
-  $('#main').innerHTML = '불러오는 중…';
-  M = await run('getMeetingData');
-  drawMeet();
+  const c = cget('meet');
+  if (c) { M = c; drawMeet(); } else $('#main').innerHTML = '불러오는 중…';
+  busy(true);
+  try {
+    M = await run('getMeetingData'); cset('meet', M);
+    if (tab === 'meet' && view.name === 'list') drawMeet();
+  } catch (e) { if (!c) $('#main').textContent = '오류: ' + e.message; }
+  busy(false);
 }
 function drawMeet() {
   const today = ymd(new Date()), open = M.tasks.filter(t => t.status !== '완료');
@@ -206,7 +226,7 @@ function taskRow(t, showMeet) {
     ${!on && t.due ? (od ? `<span class="tag bad">${-dday(t.due)}일 지남</span>` : ddTag(t.due)) : ''}</div>`;
 }
 async function flipTask(id, done) {
-  try { await run('toggleTask', id, done); const t = M.tasks.find(x => x.id === id); if (t) t.status = done ? '완료' : '대기'; toast(done ? '완료 처리' : '되돌림'); refreshView(); }
+  try { await run('toggleTask', id, done); const t = M.tasks.find(x => x.id === id); if (t) t.status = done ? '완료' : '대기'; cset('meet', M); toast(done ? '완료 처리' : '되돌림'); refreshView(); }
   catch (e) { toast(e.message || '오류'); }
 }
 let view = { name: 'list', id: null };
@@ -278,7 +298,7 @@ async function saveMeet() {
       decisions: $('#eDec').value.split('\n').map(s => s.trim()).filter(Boolean), notes: $('#eNotes').value, tasks
     });
     try { localStorage.setItem('eh_writer', $('#eWriter').value.trim()); } catch (e) {}
-    toast('저장됨'); M = await run('getMeetingData'); openMeeting(r.id);
+    toast('저장됨'); M = await run('getMeetingData'); cset('meet', M); openMeeting(r.id);
   } catch (e) { toast(e.message || '오류'); btns.forEach(b => b.disabled = false); }
 }
 
