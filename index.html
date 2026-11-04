@@ -71,7 +71,6 @@
 <body>
 <header>
   <div><h1>EH Worktool System</h1><div class="status-line" id="today"></div></div>
-  <select id="user" aria-label="사용자"></select>
 </header>
 <main id="main">불러오는 중…</main>
 <nav class="tabbar">
@@ -89,7 +88,6 @@ const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.get
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const dowOf = s => DOW[new Date(s + 'T00:00:00').getDay()];
 const md = s => Number(s.slice(5, 7)) + '/' + Number(s.slice(8, 10));
-const user = () => $('#user').value;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycby4D0MO6YSA5oZRxTNXenLwrK_r-S25BaAVRgSswRQlmQBCK3_XUnN1Ad1RXeFqKtE/exec';
 async function run(fn, ...args) {
   const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ fn, args }) });
@@ -103,9 +101,6 @@ let staff = [], tab = 'insp';
 async function init() {
   $('#today').textContent = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }) + ' 기준';
   staff = await run('getStaff');
-  const saved = localStorage.getItem('eh_user');
-  $('#user').innerHTML = staff.map(s => `<option ${s.name === saved ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
-  $('#user').onchange = () => localStorage.setItem('eh_user', user());
   $('#tInsp').onclick = () => go('insp');
   $('#tMeet').onclick = () => go('meet');
   go('insp');
@@ -257,6 +252,7 @@ function editMeeting(id) {
   const names = staff.map(s => s.name);
   $('#main').innerHTML = `<div class="nav"><button class="link" onclick="${id ? `openMeeting('${esc(id)}')` : "view={name:'list'};drawMeet()"}">취소</button><span class="t">${id ? '회의록 수정' : '새 회의록'}</span><button class="link" style="font-weight:600" onclick="saveMeet()">저장</button></div>
     <div class="lbl">제목</div><input type="text" id="eTitle" value="${esc(mt ? mt.title : md(d0) + ' (' + dowOf(d0) + ') 정기회의')}">
+    <div class="lbl">기록자</div><input type="text" id="eWriter" placeholder="이름" value="${esc(mt ? mt.writer : (function () { try { return localStorage.getItem('eh_writer') || ''; } catch (e) { return ''; } })())}">
     <div class="lbl">날짜 / 시간</div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px"><input type="date" id="eDate" value="${d0}"><input type="time" id="eTime" value="${esc(mt ? mt.time : MEET_TIME)}"></div>
     <div class="lbl">참석자</div><div class="chips" id="eAtt">${names.map(n => `<button class="${att.has(n) ? 'on' : ''}" data-n="${esc(n)}" onclick="this.classList.toggle('on')">${esc(n)}</button>`).join('')}</div>
     ${prevOpen.length ? `<div class="lbl">지난 할 일 점검</div><div class="card" id="ePrev">${prevOpen.map(t => taskRow(t)).join('')}</div>` : ''}
@@ -278,9 +274,10 @@ async function saveMeet() {
     const tasks = [...document.querySelectorAll('#eTasks .nt')].map(r => ({ text: r.querySelector('.tt').value, owner: r.querySelector('.to').value, due: r.querySelector('.td').value }));
     const r = await run('saveMeeting', {
       id: view.id, title: $('#eTitle').value, date: $('#eDate').value, time: $('#eTime').value,
-      attendees: [...document.querySelectorAll('#eAtt .on')].map(b => b.dataset.n), writer: user(),
+      attendees: [...document.querySelectorAll('#eAtt .on')].map(b => b.dataset.n), writer: $('#eWriter').value.trim(),
       decisions: $('#eDec').value.split('\n').map(s => s.trim()).filter(Boolean), notes: $('#eNotes').value, tasks
     });
+    try { localStorage.setItem('eh_writer', $('#eWriter').value.trim()); } catch (e) {}
     toast('저장됨'); M = await run('getMeetingData'); openMeeting(r.id);
   } catch (e) { toast(e.message || '오류'); btns.forEach(b => b.disabled = false); }
 }
