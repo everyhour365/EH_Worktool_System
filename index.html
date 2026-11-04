@@ -65,6 +65,17 @@
   .ck.on { background:var(--ok); border-color:var(--ok); } .done .tx { text-decoration:line-through; color:var(--sub); }
   .nt { display:grid; grid-template-columns:1fr; gap:6px; padding:10px 0; border-top:.5px solid var(--soft); }
   .nt .two { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .gridwrap { overflow-x:auto; padding-bottom:4px; }
+  .gt { border-collapse:separate; border-spacing:0; font-size:12px; }
+  .gt th, .gt td { min-width:30px; height:32px; text-align:center; border-bottom:.5px solid var(--line); border-right:.5px dotted var(--line); padding:0 1px; }
+  .gt thead th { height:24px; color:var(--sub); font-weight:500; }
+  .gt .nm { position:sticky; left:0; z-index:2; min-width:92px; text-align:left; padding:0 10px; background:var(--card); font-weight:600; font-size:13px; border-right:.5px solid var(--line); }
+  .gt .we { background:var(--soft); } .gt thead .td { background:var(--danger); color:#fff; border-radius:6px 6px 0 0; }
+  .gt td.sel { box-shadow:inset 0 0 0 1.5px var(--pri); } .gt td.click { cursor:pointer; }
+  .gc { display:inline-block; width:22px; height:22px; line-height:22px; border-radius:6px; font-weight:600; font-size:12px; position:relative; }
+  .gc.sung { background:var(--warn-soft); color:var(--warn); } .gc.gu { background:var(--pri-soft); color:var(--pri); }
+  .gc i { position:absolute; top:-2px; right:-2px; width:7px; height:7px; border-radius:50%; background:var(--danger); }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--sub); margin-top:8px; align-items:center; }
   .split { display:block; } .pr .slot:first-child { margin-top:0; }
   @media (min-width: 900px) {
     body { padding-left:200px; padding-bottom:24px; }
@@ -150,6 +161,32 @@ async function renderInsp() {
   } catch (e) { if (!c) $('#main').textContent = '오류: ' + e.message; }
   busy(false);
 }
+let inspMode = 'grid';
+const NOPER = '담당자 미지정';
+function gridHtml(rows, y, m, monthKey) {
+  const last = new Date(y, m + 1, 0).getDate(), today = ymd(new Date());
+  const inMonth = rows.filter(x => x.date.startsWith(monthKey));
+  const people = [...new Set(inMonth.map(x => x.person || NOPER))].sort((a, b) => a === NOPER ? 1 : b === NOPER ? -1 : a.localeCompare(b, 'ko'));
+  if (!people.length) return '<div class="meta" style="padding:8px 0">이 달 점검 기록이 없습니다.</div>';
+  let th1 = '', th2 = '';
+  for (let d = 1; d <= last; d++) {
+    const key = monthKey + '-' + pad(d), dw = new Date(y, m, d).getDay();
+    const c = (dw === 0 || dw === 6 ? 'we ' : '') + (key === today ? 'td' : '');
+    th1 += `<th class="${c}">${DOW[dw]}</th>`; th2 += `<th class="${c}">${d}</th>`;
+  }
+  const body = people.map(p => {
+    let tds = '';
+    for (let d = 1; d <= last; d++) {
+      const key = monthKey + '-' + pad(d), dw = new Date(y, m, d).getDay();
+      const es = inMonth.filter(x => (x.person || NOPER) === p && x.date === key);
+      const chips = es.map(e => `<span class="gc ${(e.store || '').startsWith('구') ? 'gu' : 'sung'}">${esc((e.store || '?')[0])}${e.hasIssue ? '<i></i>' : ''}</span>`).join('');
+      tds += `<td class="${dw === 0 || dw === 6 ? 'we' : ''} ${es.length ? 'click' : ''} ${key === tlSel ? 'sel' : ''}" ${es.length ? `onclick="tlSel='${key}';drawInsp()"` : ''}>${chips}</td>`;
+    }
+    return `<tr><th class="nm">${esc(p)}</th>${tds}</tr>`;
+  }).join('');
+  return `<div class="gridwrap"><table class="gt"><thead><tr><th class="nm" rowspan="2">담당자</th>${th1}</tr><tr>${th2}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="legend"><span><span class="gc sung" style="width:18px;height:18px;line-height:18px">성</span> 성수점</span><span><span class="gc gu" style="width:18px;height:18px;line-height:18px">구</span> 구의점</span><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--danger)"></i> 이슈 있음</span></div>`;
+}
 function drawInsp(err) {
   const rows = insp.filter(x => tlStore === '전체' || x.store === tlStore);
   const y = tlMonth.getFullYear(), m = tlMonth.getMonth(), monthKey = y + '-' + pad(m + 1);
@@ -159,30 +196,35 @@ function drawInsp(err) {
   const days = Object.keys(byDay).filter(d => d.startsWith(monthKey));
   const all = rows.filter(x => x.date.startsWith(monthKey));
   const issues = all.filter(x => x.hasIssue).length;
-  let h = `<div class="mini-grid"><div class="mini"><div class="k">이번 달 점검</div><div class="n">${days.length}일</div></div><div class="mini"><div class="k">제출</div><div class="n">${all.length}건</div></div><div class="mini"><div class="k">이슈</div><div class="n" style="color:${issues ? 'var(--danger)' : 'var(--ink)'}">${issues}건</div></div></div>`;
-  if (err) h += `<div class="card meta">⚠️ 응답 시트 읽기 오류: ${esc(err)}</div>`;
-  h += `<div class="chips">${stores.map(s => `<button class="${s === tlStore ? 'on' : ''}" onclick="tlStore='${esc(s)}';drawInsp()">${esc(s)}</button>`).join('')}</div>
-    <div class="card"><div class="calhead"><button onclick="tlMonth=new Date(${y},${m - 1},1);tlSel=null;drawInsp()">‹</button><span>${y}년 ${m + 1}월</span><button onclick="tlMonth=new Date(${y},${m + 1},1);tlSel=null;drawInsp()">›</button></div>
-    <div class="cal">${DOW.map(d => `<div class="h">${d}</div>`).join('')}`;
-  const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate(), today = ymd(new Date());
-  for (let i = 0; i < first; i++) h += '<div class="d out"></div>';
-  for (let d = 1; d <= last; d++) {
-    const key = monthKey + '-' + pad(d), list = byDay[key] || [];
-    h += `<div class="d ${key === today ? 'today' : ''} ${list.length ? 'has' : ''} ${key === tlSel ? 'sel' : ''}" onclick="tlSel='${key}';drawInsp()">${d}${list.length ? '<span class="ok">✓</span>' : ''}${list.some(x => x.hasIssue) ? '<i class="iss"></i>' : ''}</div>`;
-  }
-  h += '</div></div>';
-  h = '<div class="split"><div class="pl stick">' + h + '</div><div class="pr">';
+  const minis = `<div class="mini-grid"><div class="mini"><div class="k">이번 달 점검</div><div class="n">${days.length}일</div></div><div class="mini"><div class="k">제출</div><div class="n">${all.length}건</div></div><div class="mini"><div class="k">이슈</div><div class="n" style="color:${issues ? 'var(--danger)' : 'var(--ink)'}">${issues}건</div></div></div>` +
+    (err ? `<div class="card meta">⚠️ 응답 시트 읽기 오류: ${esc(err)}</div>` : '');
+  const toolbar = `<div class="chips"><button class="${inspMode === 'grid' ? 'on' : ''}" onclick="inspMode='grid';drawInsp()">일정표</button><button class="${inspMode === 'cal' ? 'on' : ''}" onclick="inspMode='cal';drawInsp()">캘린더</button></div>
+    <div class="chips">${stores.map(s => `<button class="${s === tlStore ? 'on' : ''}" onclick="tlStore='${esc(s)}';drawInsp()">${esc(s)}</button>`).join('')}</div>`;
+  const head = `<div class="calhead"><button onclick="tlMonth=new Date(${y},${m - 1},1);tlSel=null;drawInsp()">‹</button><span>${y}년 ${m + 1}월</span><button onclick="tlMonth=new Date(${y},${m + 1},1);tlSel=null;drawInsp()">›</button></div>`;
   const show = tlSel ? rows.filter(x => x.date === tlSel) : rows.slice(0, 10);
-  h += `<div class="slot">${tlSel ? tlSel + ' 점검 내역' : '최근 점검 타임라인'}</div>` + (show.length ? show.map(inspCard).join('') : '<div class="meta" style="padding:0 4px">기록이 없습니다.</div>');
-  h += '</div></div>';
+  const listH = `<div class="slot">${tlSel ? tlSel + ' 점검 내역' : '최근 점검 타임라인'}</div>` + (show.length ? show.map(inspCard).join('') : '<div class="meta" style="padding:0 4px">기록이 없습니다.</div>');
+  let h;
+  if (inspMode === 'grid') {
+    h = minis + toolbar + `<div class="card">${head}${gridHtml(rows, y, m, monthKey)}</div>` + listH;
+  } else {
+    let cal = `<div class="card">${head}<div class="cal">${DOW.map(d => `<div class="h">${d}</div>`).join('')}`;
+    const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate(), today = ymd(new Date());
+    for (let i = 0; i < first; i++) cal += '<div class="d out"></div>';
+    for (let d = 1; d <= last; d++) {
+      const key = monthKey + '-' + pad(d), list = byDay[key] || [];
+      cal += `<div class="d ${key === today ? 'today' : ''} ${list.length ? 'has' : ''} ${key === tlSel ? 'sel' : ''}" onclick="tlSel='${key}';drawInsp()">${d}${list.length ? '<span class="ok">✓</span>' : ''}${list.some(x => x.hasIssue) ? '<i class="iss"></i>' : ''}</div>`;
+    }
+    cal += '</div></div>';
+    h = '<div class="split"><div class="pl stick">' + minis + toolbar + cal + '</div><div class="pr">' + listH + '</div></div>';
+  }
   $('#main').innerHTML = h;
 }
 function linkify(v) {
   return /^https?:\/\//.test(v.split(', ')[0]) ? v.split(', ').map((u, i) => `<a href="${esc(u)}" target="_blank">📷 사진${i + 1}</a>`).join(' ') : esc(v);
 }
 function inspCard(x) {
-  const det = x.details.filter(d => !/매장|지점/.test(d[0])).map(d => `<div class="meta"><b>${esc(d[0])}</b> ${linkify(d[1])}</div>`).join('');
-  return `<div class="card"><div class="t">${esc(x.store || '매장 미지정')} · ${esc(x.date)} (${esc(x.dow)}) ${esc(x.time)}</div>
+  const det = x.details.filter(d => !/매장|지점|담당|청소자|이름|성함|작성자|누구/.test(d[0])).map(d => `<div class="meta"><b>${esc(d[0])}</b> ${linkify(d[1])}</div>`).join('');
+  return `<div class="card"><div class="t">${esc(x.store || '매장 미지정')} · ${esc(x.date)} (${esc(x.dow)}) ${esc(x.time)}${x.person ? ' · ' + esc(x.person) : ''}</div>
     ${x.hasIssue ? `<div class="iss-t">⚠️ ${esc(x.issue)}</div>` : '<div style="margin-top:4px"><span class="tag okt">이슈 없음</span></div>'}${det}</div>`;
 }
 
