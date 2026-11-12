@@ -331,7 +331,7 @@ async function openMeeting(id) {
   let h = `<div class="nav"><button class="link" onclick="view={name:'list'};drawMeet()">‹ 회의</button><button class="link" onclick="editMeeting('${esc(id)}')">수정</button></div>
     <div class="card"><div class="t" style="font-size:17px">${esc(mt.title)}</div><div class="meta">${esc(mt.date)} (${dowOf(mt.date)}) ${esc(mt.time)} · 기록 ${esc(mt.writer)}</div></div>
     <div class="lbl">점검 현황 (자동 연동)</div><div class="card" id="mi">불러오는 중…</div>`;
-  if (mt.decisions.length) h += `<div class="lbl">결정 사항</div><div class="card">${mt.decisions.map(d => `<div class="trow"><div style="flex:1">${esc(d)}</div></div>`).join('')}</div>`;
+  if (mt.decisions.length) h += `<div class="lbl">결정 사항</div><div class="card" style="white-space:pre-wrap;font-size:14px">${esc(mt.decisions.join('\n'))}</div>`;
   if (mt.notes) h += `<div class="lbl">메모</div><div class="card" style="white-space:pre-wrap;font-size:14px">${esc(mt.notes)}</div>`;
   h += `<div class="lbl">할 일</div><div class="card">${ts.length ? ts.map(t => taskRow(t)).join('') : '<div class="meta">등록된 할 일이 없습니다.</div>'}</div>`;
   paneRight(h);
@@ -355,7 +355,7 @@ function editMeeting(id) {
     <div class="lbl">기록자</div><input type="text" id="eWriter" placeholder="이름" value="${esc(mt ? mt.writer : (function () { try { return localStorage.getItem('eh_writer') || ''; } catch (e) { return ''; } })())}">
     <div class="lbl">날짜 / 시간</div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px"><input type="date" id="eDate" value="${d0}"><input type="time" id="eTime" value="${esc(mt ? mt.time : MEET_TIME)}"></div>
     ${prevOpen.length ? `<div class="lbl">지난 할 일 점검</div><div class="card" id="ePrev">${prevOpen.map(t => taskRow(t)).join('')}</div>` : ''}
-    <div class="lbl">논의 / 결정 (한 줄에 하나씩)</div><textarea id="eDec" rows="4" placeholder="예) 모기 방제 업체 견적 받기">${esc(mt ? mt.decisions.join('\n') : '')}</textarea>
+    <div class="lbl">논의 / 결정</div><textarea id="eDec" rows="4" placeholder="예) 모기 방제 업체 견적 받기">${esc(mt ? mt.decisions.join('\n') : '')}</textarea>
     <div class="lbl">메모</div><textarea id="eNotes" rows="3">${esc(mt ? mt.notes : '')}</textarea>
     <div class="lbl">새 할 일</div><div class="card" id="eTasks" style="padding-top:0;padding-bottom:4px"></div>
     <button class="btn ghost block" style="margin-top:6px" onclick="addTaskRow()">＋ 할 일 추가</button>
@@ -374,7 +374,7 @@ async function saveMeet() {
     const r = await run('saveMeeting', {
       id: view.id, title: $('#eTitle').value, date: $('#eDate').value, time: $('#eTime').value,
       attendees: [], writer: $('#eWriter').value.trim(),
-      decisions: $('#eDec').value.split('\n').map(s => s.trim()).filter(Boolean), notes: $('#eNotes').value, tasks
+      decisions: $('#eDec').value.trim() ? [$('#eDec').value.replace(/\s+$/, '')] : [], notes: $('#eNotes').value, tasks
     });
     try { localStorage.setItem('eh_writer', $('#eWriter').value.trim()); } catch (e) {}
     toast('저장됨'); M = await run('getMeetingData'); cset('meet', M); openMeeting(r.id);
