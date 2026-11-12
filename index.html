@@ -293,7 +293,7 @@ function drawMeet() {
   h += M.meetings.length ? M.meetings.map(mt => {
     const ts = M.tasks.filter(t => t.meetingId === mt.id), dn = ts.filter(t => t.status === '완료').length;
     return `<div class="card tap" onclick="openMeeting('${esc(mt.id)}')"><div style="display:flex;justify-content:space-between"><span class="t">${md(mt.date)} (${dowOf(mt.date)}) ${esc(mt.title)}</span></div>
-      <div class="meta">결정 ${mt.decisions.length} · 할 일 ${ts.length}</div>
+      <div class="meta">할 일 ${ts.length}</div>
       ${ts.length ? `<div style="margin-top:6px"><span class="tag okt">완료 ${dn}</span>${ts.length - dn ? `<span class="tag bad">미완료 ${ts.length - dn}</span>` : ''}</div>` : ''}</div>`;
   }).join('') : '<div class="meta" style="padding:0 4px">아직 회의록이 없습니다. 첫 회의록을 작성해 보세요.</div>';
   h += '</div></div>';
