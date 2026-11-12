@@ -363,7 +363,7 @@ function editMeeting(id) {
 }
 function addTaskRow() {
   const div = document.createElement('div'); div.className = 'nt';
-  div.innerHTML = `<input type="text" class="tt" placeholder="무엇을 (누가 / 언제까지)"><div class="two"><select class="to"><option value="">담당자</option>${staff.map(s => `<option>${esc(s.name)}</option>`).join('')}</select><input type="date" class="td"></div>`;
+  div.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input type="text" class="tt" placeholder="무엇을 (누가 / 언제까지)"><button type="button" class="link" style="color:var(--danger);font-size:18px;padding:0 4px" aria-label="삭제" onclick="this.closest('.nt').remove()">✕</button></div><div class="two"><select class="to"><option value="">담당자</option>${staff.map(s => `<option>${esc(s.name)}</option>`).join('')}</select><input type="date" class="td"></div>`;
   $('#eTasks').appendChild(div);
 }
 async function saveMeet() {
