@@ -356,20 +356,22 @@ function editMeeting(id) {
     ${prevOpen.length ? `<div class="lbl">지난 할 일 점검</div><div class="card" id="ePrev">${prevOpen.map(t => taskRow(t)).join('')}</div>` : ''}
     <div class="lbl">논의 / 결정</div><textarea id="eDec" rows="4" placeholder="예) 모기 방제 업체 견적 받기">${esc(mt ? mt.decisions.join('\n') : '')}</textarea>
     <div class="lbl">메모</div><textarea id="eNotes" rows="3">${esc(mt ? mt.notes : '')}</textarea>
-    <div class="lbl">새 할 일</div><div class="card" id="eTasks" style="padding-top:0;padding-bottom:4px"></div>
+    <div class="lbl">할 일</div><div class="card" id="eTasks" style="padding-top:0;padding-bottom:4px"></div>
     <button class="btn ghost block" style="margin-top:6px" onclick="addTaskRow()">＋ 할 일 추가</button>
     <button class="btn block" onclick="saveMeet()">저장</button>`);
-  addTaskRow();
+  const mine = id ? M.tasks.filter(t => t.meetingId === id) : [];
+  mine.forEach(addTaskRow); addTaskRow();
 }
-function addTaskRow() {
-  const div = document.createElement('div'); div.className = 'nt';
-  div.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input type="text" class="tt" placeholder="무엇을 (누가 / 언제까지)"><button type="button" class="link" style="color:var(--danger);font-size:18px;padding:0 4px" aria-label="삭제" onclick="this.closest('.nt').remove()">✕</button></div><div class="two"><select class="to"><option value="">담당자</option>${staff.map(s => `<option>${esc(s.name)}</option>`).join('')}</select><input type="date" class="td"></div>`;
+function addTaskRow(t) {
+  t = t || {};
+  const div = document.createElement('div'); div.className = 'nt'; div.dataset.id = t.id || '';
+  div.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><input type="text" class="tt" placeholder="무엇을 (누가 / 언제까지)" value="${esc(t.text || '')}"><button type="button" class="link" style="color:var(--danger);font-size:18px;padding:0 4px" aria-label="삭제" onclick="this.closest('.nt').remove()">✕</button></div><div class="two"><select class="to"><option value="">담당자</option>${staff.map(s => `<option${s.name === t.owner ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}${t.owner && !staff.some(s => s.name === t.owner) ? `<option selected>${esc(t.owner)}</option>` : ''}</select><input type="date" class="td" value="${esc(t.due || '')}"></div>`;
   $('#eTasks').appendChild(div);
 }
 async function saveMeet() {
   const btns = document.querySelectorAll('.btn, .link'); btns.forEach(b => b.disabled = true);
   try {
-    const tasks = [...document.querySelectorAll('#eTasks .nt')].map(r => ({ text: r.querySelector('.tt').value, owner: r.querySelector('.to').value, due: r.querySelector('.td').value }));
+    const tasks = [...document.querySelectorAll('#eTasks .nt')].map(r => ({ text: r.querySelector('.tt').value, id: r.dataset.id, owner: r.querySelector('.to').value, due: r.querySelector('.td').value }));
     const r = await run('saveMeeting', {
       id: view.id, title: $('#eTitle').value, date: $('#eDate').value, time: $('#eTime').value,
       attendees: [], writer: $('#eWriter').value.trim(),
