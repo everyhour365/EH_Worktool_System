@@ -140,6 +140,7 @@ async function init() {
   $('#tMeet').onclick = () => go('meet');
   run('getStaff').then(r => { staff = r; cset('staff', r); }).catch(() => {});
   go('insp');
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !(tab === 'meet' && view.name === 'edit')) go(tab); });
 }
 function go(t) {
   tab = t;
@@ -155,9 +156,7 @@ async function renderInsp() {
   if (c) { insp = c.list; drawInsp(); } else $('#main').innerHTML = '불러오는 중…';
   busy(true);
   try {
-    let list = insp.length ? insp : ((cget('insp') || {}).list || []);
-    if (!list.length) list = (await run('getInspections')).list;
-    const r = { list };
+    const r = await run('getInspections');
     insp = r.list; cset('insp', r);
     if (tab === 'insp') drawInsp(r.error);
     run('getMeetingData').then(d => cset('meet', d)).catch(() => {});
