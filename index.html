@@ -359,9 +359,11 @@ function editMeeting(id) {
     <div class="lbl">할 일</div><div class="card" id="eTasks" style="padding-top:0;padding-bottom:4px"></div>
     <button class="btn ghost block" style="margin-top:6px" onclick="addTaskRow()">＋ 할 일 추가</button>
     <button class="btn block" onclick="saveMeet()">저장</button>`);
+  document.querySelectorAll('#eDec, #eNotes').forEach(t => { t.style.overflow = 'hidden'; t.oninput = () => autoGrow(t); autoGrow(t); });
   const mine = id ? M.tasks.filter(t => t.meetingId === id) : [];
   mine.forEach(addTaskRow); addTaskRow();
 }
+function autoGrow(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
 function addTaskRow(t) {
   t = t || {};
   const div = document.createElement('div'); div.className = 'nt'; div.dataset.id = t.id || '';
