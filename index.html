@@ -23,7 +23,7 @@
   header { background:var(--card); padding:16px 16px 12px; border-bottom:.5px solid var(--line); position:sticky; top:0; z-index:10; }
   h1 { font-size:20px; font-weight:600; }
   .status-line { font-size:12px; color:var(--sub); margin-top:4px; }
-  select, input[type=text], input[type=date], input[type=time], textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card-sub); color:var(--ink); font:inherit; font-size:15px; }
+  select, input[type=text], input[type=date], input[type=time], textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); font:inherit; font-size:15px; }
   textarea { resize:vertical; line-height:1.5; }
   input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pri); }
   main { max-width:760px; margin:0 auto; padding:12px; }
@@ -444,7 +444,7 @@ function editMeeting(id, dateKey) {
     <div class="lbl">날짜 / 시간</div><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px"><input type="date" id="eDate" value="${d0}"><input type="time" id="eTime" value="${esc(mt ? mt.time : MEET_TIME)}"></div>
     <div class="lbl">기록자</div><input type="text" id="eWriter" placeholder="이름" value="${esc(mt ? mt.writer : writer)}">
     <div class="lbl">지난 할 일 점검</div><div class="card" id="ePrev">${prevOpenHtml(id)}</div>
-    <div class="lbl">논의 / 결정</div><textarea id="eDec" rows="5" placeholder="예) 모기 방제 업체 견적 받기&#10;ㄴ담당: 승현">${esc(mt ? mt.decisions.join('\n') : '')}</textarea>
+    <div class="lbl">논의 / 결정</div><textarea id="eDec" rows="5">${esc(mt ? mt.decisions.join('\n') : '')}</textarea>
     <div class="lbl">메모</div><textarea id="eNotes" rows="2">${esc(mt ? mt.notes : '')}</textarea>
     <div class="lbl">할 일</div><div class="card" id="eTasks"></div>
     <button class="btn ghost block" style="margin-top:0" onclick="addTaskRow();dirty=true">＋ 할 일 추가</button>
